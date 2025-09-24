@@ -3,11 +3,10 @@ module vault_addr::vault_tests {
     use std::signer;
     use aptos_framework::fungible_asset::{Metadata};
     use aptos_framework::account;
-    use aptos_framework::timestamp;
+    // REMOVED: No longer need timestamp
+    // use aptos_framework::timestamp;
     use aptos_framework::object;
     use aptos_framework::primary_fungible_store;
-    // This will now be found because Move.toml is correct
-    use aptos_framework::aptos_test_util;
 
     use vault_addr::vault;
     use vault_addr::mock_coins::{Self, USDC};
@@ -16,12 +15,11 @@ module vault_addr::vault_tests {
     const USER: address = @0x200;
 
     const DEPOSIT_AMOUNT: u64 = 100 * 1_000_000;
-    const ONE_MONTH: u64 = 2592000;
+    // REMOVED: Duration is no longer needed.
+    // const ONE_MONTH: u64 = 2592000;
 
     fun setup_system(deployer: &signer) {
-        // This is the correct, stable way to initialize the chain state for a test
-        aptos_test_util::initialize_for_test(deployer);
-
+        // No need to initialize time anymore.
         account::create_account_for_test(USER);
         mock_coins::initialize_usdc(deployer);
 
@@ -46,11 +44,14 @@ module vault_addr::vault_tests {
 
         assert!(primary_fungible_store::balance(user_addr, usdc_metadata_obj) == DEPOSIT_AMOUNT, 1);
         
-        vault::deposit<USDC>(&user_signer, usdc_metadata_obj, DEPOSIT_AMOUNT, ONE_MONTH);
+        // FIXED: Deposit call no longer needs duration.
+        vault::deposit<USDC>(&user_signer, usdc_metadata_obj, DEPOSIT_AMOUNT);
 
         assert!(primary_fungible_store::balance(user_addr, usdc_metadata_obj) == 0, 2);
 
-        timestamp::fast_forward_seconds(ONE_MONTH + 1);
+        // FIXED: Instead of fast-forwarding time, we now call the unlock function.
+        vault::unlock_stake<USDC>(&user_signer);
+
         vault::withdraw<USDC>(&user_signer);
         let final_balance = primary_fungible_store::balance(user_addr, usdc_metadata_obj);
         assert!(final_balance > DEPOSIT_AMOUNT, 3);
@@ -68,9 +69,10 @@ module vault_addr::vault_tests {
         let usdc_metadata_addr = object::create_object_address(&deployer_addr, b"MockUSDC");
         let usdc_metadata_obj = object::address_to_object<Metadata>(usdc_metadata_addr);
         
-        vault::deposit<USDC>(&user_signer, usdc_metadata_obj, DEPOSIT_AMOUNT, ONE_MONTH);
+        // FIXED: Deposit call no longer needs duration.
+        vault::deposit<USDC>(&user_signer, usdc_metadata_obj, DEPOSIT_AMOUNT);
 
-        timestamp::fast_forward_seconds(ONE_MONTH - 10);
+        // FIXED: No need to fast-forward time. We just try to withdraw while it's still locked.
         vault::withdraw<USDC>(&user_signer);
     }
 
@@ -87,10 +89,10 @@ module vault_addr::vault_tests {
         let usdc_metadata_obj = object::address_to_object<Metadata>(usdc_metadata_addr);
 
         // First deposit
-        vault::deposit<USDC>(&user_signer, usdc_metadata_obj, DEPOSIT_AMOUNT, ONE_MONTH);
+        vault::deposit<USDC>(&user_signer, usdc_metadata_obj, DEPOSIT_AMOUNT);
 
         // Second (failed) deposit
         mock_coins::mint(deployer, user_addr, DEPOSIT_AMOUNT);
-        vault::deposit<USDC>(&user_signer, usdc_metadata_obj, DEPOSIT_AMOUNT, ONE_MONTH);
+        vault::deposit<USDC>(&user_signer, usdc_metadata_obj, DEPOSIT_AMOUNT);
     }
 }
