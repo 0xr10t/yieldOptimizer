@@ -1,16 +1,28 @@
 import React, { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useHelpBox } from "../components/HelpBox.js";
+import { useWallet } from "@aptos-labs/wallet-adapter-react";
+import { WalletSelector } from "@aptos-labs/wallet-adapter-ant-design";
 //import {useWallet} from "../context/WalletContext.jsx";
 
 const Navbar = () => {
 
   const [currentPath, setCurrentPath] = useState("");
   const { openHelp } = useHelpBox();
+  const { connected } = useWallet();
+  const navigate = useNavigate();
   //const{address,connectWallet}=useWallet();
   
   useEffect(() => {
     setCurrentPath(window.location.pathname);
   }, []);
+
+  // When wallet is connected, redirect to dashboard
+  useEffect(() => {
+    if (connected) {
+      navigate("/dashboard");
+    }
+  }, [connected, navigate]);
 
   const linkClasses = (path) =>
     `hover:text-purple-300 transition ${currentPath === path ? "underline underline-offset-4 text-purple-300" : ""
@@ -29,9 +41,7 @@ const Navbar = () => {
       </div>
 
       <div className="flex items-center gap-4">
-      {/* <button onClick={connectWallet} disabled={!!address} className="bg-white text-black px-4 py-2 rounded-md font-medium hover:bg-gray-100 transition">
-    {address ? `Connected` : "Connect Wallet"}
-  </button> */}
+        <WalletSelector />
       </div>
     </div>
   );
