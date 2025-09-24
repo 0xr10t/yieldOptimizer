@@ -1,0 +1,17 @@
+[package]
+name = "AptosDeFiVault"
+version = "0.0.1"
+
+# This line is the most important part. It activates the modern compiler.
+edition = "2024.alpha"
+
+# Specifies the modern Aptos Move language version.
+[addresses]
+# This is a placeholder for your contract's address.
+# The Aptos CLI will replace "_" with a real address during deployment.
+vault_addr = "0x04a58ae9b63b893e398b05203ba981a31b73321b7452af59abcf58b5bc81bb0c"
+
+[dependencies]
+# This line imports the official Aptos Framework, which contains all the
+# necessary tools for accounts, coins, tables, and timestamps.
+AptosFramework = { git = "https://github.com/aptos-labs/aptos-core.git", rev = "main", subdir = "aptos-move/framework/aptos-framework" }
