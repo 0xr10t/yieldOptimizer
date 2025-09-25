@@ -72,6 +72,12 @@ const Dashboard = () => {
     }
   ];
 
+  const handleDeposit = (poolPair) => {
+    // Navigate to deposit page - you'll need to implement routing
+    window.location.href = '/deposit';
+    // Or if using React Router: navigate('/deposit');
+  };
+
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
@@ -150,27 +156,71 @@ const Dashboard = () => {
             </div>
 
             {/* Table Header */}
-            <div className="grid grid-cols-5 gap-4 px-6 py-3 text-sm text-muted-foreground border-b border-border animate-fade-in">
-              <div>Pools</div>
-              <div className="text-right">Volume 24H ⬇</div>
-              <div className="text-right">APR ⬇</div>
-              <div className="text-right">TVL ⬇</div>
-              <div className="text-right">Actions</div>
+            <div className="grid grid-cols-6 gap-4 px-6 py-3 text-sm text-muted-foreground border-b border-border animate-fade-in">
+              <div className="col-span-2">Pools</div>
+              <div className="text-center">Volume 24H ⬇</div>
+              <div className="text-center">APR ⬇</div>
+              <div className="text-center">TVL ⬇</div>
+              <div className="text-center">Actions</div>
             </div>
 
-            {/* Pool Cards */}
+            {/* Pool Rows */}
             <div className="space-y-2">
               {pools.map((pool, index) => (
-                <PoolCard
-                  key={pool.pair}
-                  pair={pool.pair}
-                  volume24h={pool.volume24h}
-                  apr={pool.apr}
-                  tvl={pool.tvl}
-                  stable={pool.stable}
-                  version={pool.version}
-                  delay={index * 100}
-                />
+                <Card key={pool.pair} className="glass-morphism animate-slide-up border-border/50 hover:bg-accent/50 transition-all duration-200" style={{animationDelay: `${index * 100}ms`}}>
+                  <CardContent className="p-6">
+                    <div className="grid grid-cols-6 gap-4 items-center">
+                      {/* Pool Info */}
+                      <div className="col-span-2 flex items-center space-x-4">
+                        <div className="flex -space-x-2">
+                          <div className="w-10 h-10 rounded-full bg-gradient-to-r from-purple-500 to-blue-500 border-2 border-background"></div>
+                          <div className="w-10 h-10 rounded-full bg-gradient-to-r from-orange-500 to-yellow-500 border-2 border-background"></div>
+                        </div>
+                        <div>
+                          <div className="font-medium text-lg">{pool.pair}</div>
+                          <div className="flex items-center space-x-2 text-sm text-muted-foreground">
+                            {pool.stable && <Badge variant="secondary" className="text-xs">Stable</Badge>}
+                            <span>Ver. {pool.version}</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Volume 24H */}
+                      <div className="text-center">
+                        <div className="text-sm text-muted-foreground">Volume 24H</div>
+                        <div className="font-medium">{pool.volume24h}</div>
+                      </div>
+
+                      {/* APR */}
+                      <div className="text-center">
+                        <div className="text-sm text-muted-foreground">APR</div>
+                        <div className="font-medium text-green-500">{pool.apr}</div>
+                      </div>
+
+                      {/* TVL */}
+                      <div className="text-center">
+                        <div className="text-sm text-muted-foreground">TVL</div>
+                        <div className="font-medium">{pool.tvl}</div>
+                      </div>
+
+                      {/* Actions */}
+                      <div className="text-center">
+                        <div className="flex items-center justify-center space-x-2">
+                          <Button
+                            size="sm"
+                            onClick={() => handleDeposit(pool.pair)}
+                            className="bg-gradient-to-r from-purple-500 to-blue-500 hover:from-purple-600 hover:to-blue-600 text-white"
+                          >
+                            Deposit
+                          </Button>
+                          <Button variant="ghost" size="sm">
+                            <ArrowUpRight className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
               ))}
             </div>
           </TabsContent>
