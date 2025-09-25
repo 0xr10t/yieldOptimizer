@@ -9,7 +9,7 @@ createRoot(document.getElementById("root")!).render(
   <AptosWalletAdapterProvider
     autoConnect={true}
     dappConfig={{
-      network: Network.TESTNET,
+      network: Network.DEVNET,
     }}
     onError={(error) => {
       console.error("Aptos wallet adapter error:", error);

@@ -1,5 +1,4 @@
 module vault_addr::strategy {
-    use std::signer;
     use aptos_framework::fungible_asset::{Self, FungibleAsset, Metadata, FungibleStore};
     use aptos_framework::object::{Self, Object};
     use aptos_framework::primary_fungible_store;
@@ -31,7 +30,7 @@ module vault_addr::strategy {
     public fun deposit<WantType, ReceiptType, RewardType>(
         strategy_obj: Object<Strategy<WantType, ReceiptType, RewardType>>,
         asset_to_deposit: FungibleAsset,
-    ) {
+    ) acquires Strategy {
         let strategy_addr = object::object_address(&strategy_obj);
         let strategy = borrow_global<Strategy<WantType, ReceiptType, RewardType>>(strategy_addr);
         let receipt_asset = lending_protocol::deposit(strategy.pool_addr, asset_to_deposit);
@@ -42,7 +41,7 @@ module vault_addr::strategy {
         strategy_obj: Object<Strategy<WantType, ReceiptType, RewardType>>,
         strategy_signer: &signer,
         amount_to_withdraw: u64,
-    ): FungibleAsset {
+    ): FungibleAsset acquires Strategy {
         let strategy_addr = object::object_address(&strategy_obj);
         let strategy = borrow_global<Strategy<WantType, ReceiptType, RewardType>>(strategy_addr);
         let receipt_asset = fungible_asset::withdraw(strategy_signer, strategy.receipt_token_store, amount_to_withdraw);
@@ -52,7 +51,7 @@ module vault_addr::strategy {
     public fun harvest<WantType, ReceiptType, RewardType>(
         strategy_obj: Object<Strategy<WantType, ReceiptType, RewardType>>,
         vault_treasury_addr: address,
-    ) {
+    ) acquires Strategy {
         let strategy_addr = object::object_address(&strategy_obj);
         let strategy = borrow_global<Strategy<WantType, ReceiptType, RewardType>>(strategy_addr);
         let reward_asset = lending_protocol::claim_rewards(strategy.pool_addr);
@@ -62,7 +61,7 @@ module vault_addr::strategy {
     #[view]
     public fun get_receipt_token_balance<WantType, ReceiptType, RewardType>(
         strategy_obj: Object<Strategy<WantType, ReceiptType, RewardType>>
-    ): u64 {
+    ): u64 acquires Strategy {
         let strategy_addr = object::object_address(&strategy_obj);
         let strategy = borrow_global<Strategy<WantType, ReceiptType, RewardType>>(strategy_addr);
         fungible_asset::balance(strategy.receipt_token_store)

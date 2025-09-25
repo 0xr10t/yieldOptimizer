@@ -1,6 +1,6 @@
 module vault_addr::vault {
     use std::signer;
-    use aptos_framework::fungible_asset::{Self, Metadata};
+    use aptos_framework::fungible_asset::Metadata;
     use aptos_std::table::{Self, Table};
     use aptos_framework::event::{Self, EventHandle};
     use aptos_framework::account::{Self, SignerCapability};
@@ -43,7 +43,7 @@ module vault_addr::vault {
         move_to(deployer, AdminCap { resource_cap });
     }
 
-    public entry fun deposit<AssetType: key>(user: &signer, metadata: Object<Metadata>, amount: u64, duration_secs: u64) {
+    public entry fun deposit<AssetType: key>(user: &signer, metadata: Object<Metadata>, amount: u64, duration_secs: u64) acquires Vault, EventStore {
         let user_addr = signer::address_of(user);
         assert!(amount > 0, EZERO_DEPOSIT_AMOUNT);
         let vault_addr = account::create_resource_address(&@vault_addr, b"vault_account");
@@ -63,7 +63,7 @@ module vault_addr::vault {
         event::emit_event(&mut event_store.deposit_events, DepositEvent { user: user_addr, amount, duration_secs, total_return });
     }
 
-    public entry fun withdraw<AssetType: key>(user: &signer) {
+    public entry fun withdraw<AssetType: key>(user: &signer) acquires Vault, EventStore, AdminCap {
         let user_addr = signer::address_of(user);
         let vault_addr = account::create_resource_address(&@vault_addr, b"vault_account");
         let vault = borrow_global_mut<Vault<AssetType>>(vault_addr);
@@ -81,14 +81,14 @@ module vault_addr::vault {
         event::emit_event(&mut event_store.withdrawal_events, WithdrawalEvent { user: user_addr, amount_withdrawn: user_stake.total_return });
     }
     
-    public entry fun harvest<AssetType: key>(_caller: &signer) {
+    public entry fun harvest<AssetType: key>(_caller: &signer) acquires Vault {
         let vault_addr = account::create_resource_address(&@vault_addr, b"vault_account");
         let vault = borrow_global<Vault<AssetType>>(vault_addr);
         strategy::harvest(vault.strategy, vault_addr);
     }
     
     #[view]
-    public fun get_stake<AssetType: key>(user: address): (u64, u64, u64) {
+    public fun get_stake<AssetType: key>(user: address): (u64, u64, u64) acquires Vault {
         let vault_addr = account::create_resource_address(&@vault_addr, b"vault_account");
         if (exists<Vault<AssetType>>(vault_addr)) {
             let vault = borrow_global<Vault<AssetType>>(vault_addr);

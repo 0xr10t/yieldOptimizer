@@ -1,36 +1,120 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { ArrowLeft, ArrowRight, CheckCircle, Search, Plus, TrendingUp, Shield, Zap } from "lucide-react"
+import { Badge } from "@/components/ui/badge"
+import { useNavigate } from "react-router-dom"
+import { useWallet } from "@aptos-labs/wallet-adapter-react"
+import { useVault } from "@/hooks/useVault"
+import { DURATION_OPTIONS } from "@/types/contracts"
+import { ArrowLeft, ArrowRight, CheckCircle, Search, Plus, TrendingUp, Shield, Zap, AlertCircle, Clock, DollarSign } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"
 
 const Deposit = () => {
-  const [selectedAsset, setSelectedAsset] = useState("USDC")
+  const navigate = useNavigate()
+  const { account } = useWallet()
+  const { 
+    strategies, 
+    deposit, 
+    loading, 
+    error, 
+    getTokenBalance,
+    calculateExpectedYield,
+    calculateTotalReturn,
+    formatDuration,
+    getAPYForDuration
+  } = useVault()
+  
+  const [selectedAsset, setSelectedAsset] = useState("APT")
   const [amount, setAmount] = useState("")
+  const [duration, setDuration] = useState(DURATION_OPTIONS.ONE_MONTH)
   const [step, setStep] = useState(1)
   const [searchTerm, setSearchTerm] = useState("")
+  const [userBalance, setUserBalance] = useState(0)
+  const [isProcessing, setIsProcessing] = useState(false)
+  const [transactionHash, setTransactionHash] = useState("")
 
-  const assets = [
-    { symbol: "USDC", name: "USD Coin", balance: 1250.5, apy: "12.45%", tvl: "$4,763,266" },
-    { symbol: "USDT", name: "Tether USD", balance: 850.25, apy: "11.89%", tvl: "$334,274" },
-    { symbol: "APT", name: "Aptos", balance: 125.75, apy: "15.23%", tvl: "$2,145,890" },
+  // Available assets for deposit on devnet
+  const availableAssets = [
+    { symbol: "APT", name: "Aptos Coin", decimals: 8, type: "0x1::aptos_coin::AptosCoin" },
+    { symbol: "USDC", name: "Mock USDC", decimals: 6, type: "0x4b60a43a85ace47e73b53550beef265817e38f9cc36c9005034fc7d8125f95fd::mock_coins::USDC" },
+    { symbol: "USDT", name: "Mock USDT", decimals: 6, type: "0x4b60a43a85ace47e73b53550beef265817e38f9cc36c9005034fc7d8125f95fd::mock_coins::USDT" },
   ]
 
-  const filteredAssets = assets.filter(asset => 
-    asset.symbol.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    asset.name.toLowerCase().includes(searchTerm.toLowerCase())
+  // Get available strategies
+  const availableStrategies = strategies.filter(strategy => 
+    strategy.symbol.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    strategy.name.toLowerCase().includes(searchTerm.toLowerCase())
   )
 
-  const selectedAssetData = assets.find((asset) => asset.symbol === selectedAsset)
+  const selectedStrategy = strategies.find((strategy) => strategy.symbol === selectedAsset)
 
-  const handleDeposit = () => {
-    setStep(2)
-    setTimeout(() => setStep(3), 2000)
-    setTimeout(() => setStep(4), 4000)
+  // Get selected asset info
+  const selectedAssetInfo = availableAssets.find(asset => asset.symbol === selectedAsset)
+
+  // Fetch user balance for selected asset
+  useEffect(() => {
+    const fetchBalance = async () => {
+      if (account?.address && selectedAssetInfo) {
+        try {
+          const balance = await getTokenBalance(selectedAssetInfo.type)
+          setUserBalance(balance / Math.pow(10, selectedAssetInfo.decimals)) // Convert from smallest unit
+        } catch (err) {
+          console.error("Error fetching balance:", err)
+          setUserBalance(0)
+        }
+      }
+    }
+    fetchBalance()
+  }, [account?.address, selectedAssetInfo, getTokenBalance])
+
+  const handleDeposit = async () => {
+    if (!account) {
+      alert("Please connect your wallet first")
+      return
+    }
+
+    if (!amount || parseFloat(amount) <= 0) {
+      alert("Please enter a valid amount")
+      return
+    }
+
+    if (parseFloat(amount) > userBalance) {
+      alert("Insufficient balance")
+      return
+    }
+
+    if (!selectedAssetInfo) {
+      alert("Please select a valid asset")
+      return
+    }
+
+    try {
+      setIsProcessing(true)
+      setStep(2)
+      
+      const depositParams = {
+        amount: Math.floor(parseFloat(amount) * Math.pow(10, selectedAssetInfo.decimals)), // Convert to smallest unit
+        durationSecs: duration,
+        assetType: selectedAssetInfo.type
+      }
+
+      const response = await deposit(depositParams)
+      console.log("Deposit successful:", response)
+      setTransactionHash(response.hash || "")
+      
+      setStep(3)
+      setTimeout(() => setStep(4), 2000)
+    } catch (err) {
+      console.error("Deposit failed:", err)
+      alert(`Deposit failed: ${err instanceof Error ? err.message : "Unknown error"}`)
+      setStep(1)
+    } finally {
+      setIsProcessing(false)
+    }
   }
 
   const containerVariants = {
@@ -62,7 +146,7 @@ const Deposit = () => {
                 Your {amount} {selectedAsset} has been successfully deposited and is now earning yield.
               </p>
               <Button 
-                onClick={() => window.location.reload()} 
+                onClick={() => navigate("/dashboard")} 
                 className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white font-semibold py-3 px-6 rounded-xl transition-all duration-300 transform hover:scale-105"
               >
                 Back to Dashboard
@@ -88,13 +172,13 @@ const Deposit = () => {
         <div className="max-w-6xl mx-auto">
           {/* Header */}
           <div className="flex items-center space-x-4 mb-10">
-            <Button 
-              variant="ghost" 
-              className="text-white hover:bg-white/10 p-2 rounded-xl"
-              onClick={() => window.history.back()}
-            >
-              <ArrowLeft className="w-5 h-5" />
-            </Button>
+              <Button 
+                variant="ghost" 
+                className="text-white hover:bg-white/10 p-2 rounded-xl"
+                onClick={() => navigate("/dashboard")}
+              >
+                <ArrowLeft className="w-5 h-5" />
+              </Button>
             <div>
               <h1 className="text-4xl font-bold text-white mb-2">Single-Token Deposits</h1>
               <p className="text-slate-300 text-lg">Single-sided liquidity positions that hold only one token in a pool.</p>
@@ -119,14 +203,14 @@ const Deposit = () => {
               {/* Filter Tabs */}
               <div className="flex gap-4 mb-8">
                 <Button className="bg-slate-700/50 text-white hover:bg-slate-600/50 rounded-xl px-6 py-2">
-                  ALL {filteredAssets.length}
+                  ALL {availableStrategies.length}
                 </Button>
                 <Button variant="outline" className="border-slate-600 text-slate-300 hover:bg-slate-700/30 rounded-xl px-6 py-2">
-                  ≡ APT 2
+                  ≡ APT {strategies.filter(s => s.symbol === "APT").length}
                 </Button>
                 <Button variant="outline" className="border-slate-600 text-slate-300 hover:bg-slate-700/30 rounded-xl px-6 py-2 flex items-center gap-2">
                   <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                  USDC 2
+                  USDC {strategies.filter(s => s.symbol === "USDC").length}
                 </Button>
               </div>
 
@@ -143,45 +227,60 @@ const Deposit = () => {
                       </div>
                     </CardHeader>
                     <CardContent className="space-y-4">
-                      {filteredAssets.map((asset, index) => (
-                        <motion.div
-                          key={asset.symbol}
-                          initial={{ opacity: 0, y: 20 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          transition={{ delay: index * 0.1 }}
-                          className="grid grid-cols-12 gap-4 items-center p-4 bg-slate-700/20 rounded-xl hover:bg-slate-700/30 transition-all duration-300 cursor-pointer"
-                          onClick={() => setSelectedAsset(asset.symbol)}
-                        >
-                          <div className="col-span-4 flex items-center gap-3">
-                            <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white font-bold text-sm ${
-                              asset.symbol === 'USDC' ? 'bg-blue-600' : 
-                              asset.symbol === 'USDT' ? 'bg-green-600' : 'bg-purple-600'
-                            }`}>
-                              {asset.symbol.charAt(0)}
-                            </div>
-                            <div>
-                              <div className="text-white font-semibold flex items-center gap-2">
-                                {asset.symbol} LayerZero → ≡ APT
+                      {loading ? (
+                        <div className="text-center py-8">
+                          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-500 mx-auto"></div>
+                          <p className="text-slate-300 mt-2">Loading strategies...</p>
+                        </div>
+                      ) : availableStrategies.length > 0 ? (
+                        availableStrategies.map((strategy, index) => (
+                          <motion.div
+                            key={strategy.id}
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: index * 0.1 }}
+                            className={`grid grid-cols-12 gap-4 items-center p-4 rounded-xl transition-all duration-300 cursor-pointer ${
+                              selectedAsset === strategy.symbol 
+                                ? 'bg-purple-600/30 border border-purple-500/50' 
+                                : 'bg-slate-700/20 hover:bg-slate-700/30'
+                            }`}
+                            onClick={() => setSelectedAsset(strategy.symbol)}
+                          >
+                            <div className="col-span-4 flex items-center gap-3">
+                              <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white font-bold text-sm ${
+                                strategy.symbol === 'USDC' ? 'bg-blue-600' : 
+                                strategy.symbol === 'USDT' ? 'bg-green-600' : 'bg-purple-600'
+                              }`}>
+                                {strategy.symbol.charAt(0)}
                               </div>
-                              <div className="text-slate-400 text-sm">🏦 Solo Vaults</div>
+                              <div>
+                                <div className="text-white font-semibold flex items-center gap-2">
+                                  {strategy.symbol} Yield Strategy
+                                </div>
+                                <div className="text-slate-400 text-sm">🏦 Vault Protocol</div>
+                              </div>
                             </div>
-                          </div>
-                          <div className="col-span-3 text-right">
-                            <div className="text-white font-bold text-lg">{asset.tvl}</div>
-                          </div>
-                          <div className="col-span-2 text-right">
-                            <div className="text-white font-semibold">{asset.symbol}</div>
-                          </div>
-                          <div className="col-span-3 text-right">
-                            <Button 
-                              size="sm" 
-                              className="bg-purple-600 hover:bg-purple-700 text-white rounded-full w-8 h-8 p-0"
-                            >
-                              <Plus className="w-4 h-4" />
-                            </Button>
-                          </div>
-                        </motion.div>
-                      ))}
+                            <div className="col-span-3 text-right">
+                              <div className="text-white font-bold text-lg">{strategy.tvl}</div>
+                            </div>
+                            <div className="col-span-2 text-right">
+                              <div className="text-green-400 font-semibold">{strategy.apy.toFixed(2)}% APY</div>
+                            </div>
+                            <div className="col-span-3 text-right">
+                              <Button 
+                                size="sm" 
+                                className="bg-purple-600 hover:bg-purple-700 text-white rounded-full w-8 h-8 p-0"
+                              >
+                                <Plus className="w-4 h-4" />
+                              </Button>
+                            </div>
+                          </motion.div>
+                        ))
+                      ) : (
+                        <div className="text-center py-8">
+                          <p className="text-slate-300">No strategies found matching your search.</p>
+                        </div>
+                      )}
                     </CardContent>
                   </Card>
                 </div>
@@ -197,22 +296,25 @@ const Deposit = () => {
                           </CardHeader>
                           <CardContent className="space-y-6">
                             <div className="space-y-3">
-                              <label className="text-sm font-medium text-slate-300">Select Asset</label>
+                              <label className="text-sm font-medium text-slate-300">Select Strategy</label>
                               <Select value={selectedAsset} onValueChange={setSelectedAsset}>
                                 <SelectTrigger className="bg-slate-700/50 border-slate-600 text-white rounded-xl">
                                   <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent className="bg-slate-800 border-slate-700">
-                                  {assets.map((asset) => (
-                                    <SelectItem key={asset.symbol} value={asset.symbol} className="text-white hover:bg-slate-700">
+                                  {strategies.map((strategy) => (
+                                    <SelectItem key={strategy.id} value={strategy.symbol} className="text-white hover:bg-slate-700">
                                       <div className="flex items-center space-x-3">
                                         <div className={`w-6 h-6 rounded-full flex items-center justify-center text-white font-bold text-xs ${
-                                          asset.symbol === 'USDC' ? 'bg-blue-600' : 
-                                          asset.symbol === 'USDT' ? 'bg-green-600' : 'bg-purple-600'
+                                          strategy.symbol === 'USDC' ? 'bg-blue-600' : 
+                                          strategy.symbol === 'USDT' ? 'bg-green-600' : 'bg-purple-600'
                                         }`}>
-                                          {asset.symbol.charAt(0)}
+                                          {strategy.symbol.charAt(0)}
                                         </div>
-                                        <span className="font-medium">{asset.symbol}</span>
+                                        <div>
+                                          <span className="font-medium">{strategy.symbol}</span>
+                                          <div className="text-xs text-slate-400">{strategy.apy.toFixed(2)}% APY</div>
+                                        </div>
                                       </div>
                                     </SelectItem>
                                   ))}
@@ -221,10 +323,33 @@ const Deposit = () => {
                             </div>
 
                             <div className="space-y-3">
+                              <label className="text-sm font-medium text-slate-300">Lock Duration</label>
+                              <Select value={duration.toString()} onValueChange={(value) => setDuration(parseInt(value))}>
+                                <SelectTrigger className="bg-slate-700/50 border-slate-600 text-white rounded-xl">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent className="bg-slate-800 border-slate-700">
+                                  <SelectItem value={DURATION_OPTIONS.ONE_MONTH.toString()} className="text-white hover:bg-slate-700">
+                                    <div className="flex items-center justify-between w-full">
+                                      <span>1 Month</span>
+                                      <Badge variant="secondary" className="ml-2">3.00% APY</Badge>
+                                    </div>
+                                  </SelectItem>
+                                  <SelectItem value={DURATION_OPTIONS.SIX_MONTHS.toString()} className="text-white hover:bg-slate-700">
+                                    <div className="flex items-center justify-between w-full">
+                                      <span>6 Months</span>
+                                      <Badge variant="secondary" className="ml-2">5.00% APY</Badge>
+                                    </div>
+                                  </SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
+
+                            <div className="space-y-3">
                               <div className="flex justify-between">
                                 <label className="text-sm font-medium text-slate-300">Amount</label>
                                 <span className="text-sm text-slate-400">
-                                  Balance: {selectedAssetData?.balance} {selectedAsset}
+                                  Balance: {userBalance.toFixed(2)} {selectedAsset}
                                 </span>
                               </div>
                               <div className="flex space-x-2">
@@ -234,10 +359,11 @@ const Deposit = () => {
                                   value={amount}
                                   onChange={(e) => setAmount(e.target.value)}
                                   className="flex-1 bg-slate-700/50 border-slate-600 text-white placeholder-slate-400 rounded-xl"
+                                  max={userBalance}
                                 />
                                 <Button
                                   variant="outline"
-                                  onClick={() => setAmount(selectedAssetData?.balance.toString() || "")}
+                                  onClick={() => setAmount(userBalance.toString())}
                                   className="border-slate-600 text-slate-300 hover:bg-slate-700/50 rounded-xl px-6"
                                 >
                                   Max
@@ -247,29 +373,55 @@ const Deposit = () => {
 
                             <div className="bg-slate-700/30 rounded-xl p-4 space-y-3 border border-slate-600/30">
                               <div className="flex justify-between text-sm">
-                                <span className="text-slate-300">Current APY</span>
-                                <span className="text-green-400 font-bold">{selectedAssetData?.apy}</span>
+                                <span className="text-slate-300">Lock Duration</span>
+                                <span className="text-white font-medium">{formatDuration(duration)}</span>
                               </div>
                               <div className="flex justify-between text-sm">
-                                <span className="text-slate-300">Est. Annual Earnings</span>
+                                <span className="text-slate-300">APY</span>
+                                <span className="text-green-400 font-bold">{getAPYForDuration(duration).toFixed(2)}%</span>
+                              </div>
+                              <div className="flex justify-between text-sm">
+                                <span className="text-slate-300">Est. Total Return</span>
                                 <span className="text-green-400 font-bold">
-                                  +${((Number.parseFloat(amount) || 0) * 0.1245).toFixed(2)}
+                                  ${calculateTotalReturn(parseFloat(amount) || 0, duration).toFixed(2)}
                                 </span>
                               </div>
                               <div className="flex justify-between text-sm">
-                                <span className="text-slate-300">Pool TVL</span>
-                                <span className="text-white font-medium">{selectedAssetData?.tvl}</span>
+                                <span className="text-slate-300">Est. Yield Earned</span>
+                                <span className="text-green-400 font-bold">
+                                  +${calculateExpectedYield(parseFloat(amount) || 0, duration).toFixed(2)}
+                                </span>
+                              </div>
+                              <div className="flex justify-between text-sm">
+                                <span className="text-slate-300">Strategy TVL</span>
+                                <span className="text-white font-medium">{selectedStrategy?.tvl || "N/A"}</span>
                               </div>
                             </div>
 
                             <Button
                               className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white font-semibold py-3 px-6 rounded-xl transition-all duration-300 transform hover:scale-105 flex items-center justify-center gap-2"
                               onClick={handleDeposit}
-                              disabled={!amount || Number.parseFloat(amount) <= 0}
+                              disabled={!amount || Number.parseFloat(amount) <= 0 || isProcessing || !account}
                             >
-                              Bridge & Deposit
-                              <ArrowRight className="w-5 h-5" />
+                              {isProcessing ? (
+                                <>
+                                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                                  Processing...
+                                </>
+                              ) : (
+                                <>
+                                  Deposit {amount || "0.00"} {selectedAsset}
+                                  <ArrowRight className="w-5 h-5" />
+                                </>
+                              )}
                             </Button>
+
+                            {error && (
+                              <div className="flex items-center space-x-3 p-3 bg-red-500/10 rounded-xl border border-red-500/20">
+                                <AlertCircle className="w-5 h-5 text-red-400 flex-shrink-0" />
+                                <p className="text-red-400 text-sm">{error}</p>
+                              </div>
+                            )}
                           </CardContent>
                         </Card>
 
