@@ -1,9 +1,10 @@
 [package]
 name = "AptosDeFiVault"
+# FIXED: Use 'version' for older CLIs, not 'edition'.
 version = "0.0.1"
 
-# # This line is the most important part. It activates the modern compiler.
-# edition = "2024.alpha"
+# This line is the most important part. It activates the modern compiler.
+# version = "2024.alpha"
 
 # Specifies the modern Aptos Move language version.
 [addresses]
