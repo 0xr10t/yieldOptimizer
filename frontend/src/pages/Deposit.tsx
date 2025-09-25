@@ -332,13 +332,17 @@ const Deposit = () => {
                                   <SelectItem value={DURATION_OPTIONS.ONE_MONTH.toString()} className="text-white hover:bg-slate-700">
                                     <div className="flex items-center justify-between w-full">
                                       <span>1 Month</span>
-                                      <Badge variant="secondary" className="ml-2">3.00% APY</Badge>
+                                      <Badge variant="secondary" className="ml-2">
+                                        {getAPYForDuration(DURATION_OPTIONS.ONE_MONTH, selectedAssetInfo?.type).toFixed(2)}% APY
+                                      </Badge>
                                     </div>
                                   </SelectItem>
                                   <SelectItem value={DURATION_OPTIONS.SIX_MONTHS.toString()} className="text-white hover:bg-slate-700">
                                     <div className="flex items-center justify-between w-full">
                                       <span>6 Months</span>
-                                      <Badge variant="secondary" className="ml-2">5.00% APY</Badge>
+                                      <Badge variant="secondary" className="ml-2">
+                                        {getAPYForDuration(DURATION_OPTIONS.SIX_MONTHS, selectedAssetInfo?.type).toFixed(2)}% APY
+                                      </Badge>
                                     </div>
                                   </SelectItem>
                                 </SelectContent>
@@ -378,18 +382,18 @@ const Deposit = () => {
                               </div>
                               <div className="flex justify-between text-sm">
                                 <span className="text-slate-300">APY</span>
-                                <span className="text-green-400 font-bold">{getAPYForDuration(duration).toFixed(2)}%</span>
+                                <span className="text-green-400 font-bold">{getAPYForDuration(duration, selectedAssetInfo?.type).toFixed(2)}%</span>
                               </div>
                               <div className="flex justify-between text-sm">
                                 <span className="text-slate-300">Est. Total Return</span>
                                 <span className="text-green-400 font-bold">
-                                  ${calculateTotalReturn(parseFloat(amount) || 0, duration).toFixed(2)}
+                                  ${calculateTotalReturn(parseFloat(amount) || 0, duration, selectedAssetInfo?.type).toFixed(2)}
                                 </span>
                               </div>
                               <div className="flex justify-between text-sm">
                                 <span className="text-slate-300">Est. Yield Earned</span>
                                 <span className="text-green-400 font-bold">
-                                  +${calculateExpectedYield(parseFloat(amount) || 0, duration).toFixed(2)}
+                                  +${calculateExpectedYield(parseFloat(amount) || 0, duration, selectedAssetInfo?.type).toFixed(2)}
                                 </span>
                               </div>
                               <div className="flex justify-between text-sm">

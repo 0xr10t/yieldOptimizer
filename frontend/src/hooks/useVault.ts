@@ -226,21 +226,6 @@ export const useVault = () => {
     }
   }, [account?.address]);
 
-  // Calculate expected yield
-  const calculateExpectedYield = useCallback((amount: number, durationSecs: number) => {
-    return contractService.calculateExpectedYield(amount, durationSecs);
-  }, []);
-
-  // Calculate total return
-  const calculateTotalReturn = useCallback((amount: number, durationSecs: number) => {
-    return contractService.calculateTotalReturn(amount, durationSecs);
-  }, []);
-
-  // Format duration
-  const formatDuration = useCallback((durationSecs: number) => {
-    return contractService.formatDuration(durationSecs);
-  }, []);
-
   // Calculate APY based on duration and asset type
   const getAPYForDuration = useCallback((durationSecs: number, assetType?: string): number => {
     // APY calculation based on asset type and duration
@@ -267,6 +252,23 @@ export const useVault = () => {
       }
     }
     return 0;
+  }, []);
+
+  // Calculate expected yield with asset-specific APY
+  const calculateExpectedYield = useCallback((amount: number, durationSecs: number, assetType?: string) => {
+    const apy = getAPYForDuration(durationSecs, assetType);
+    return (amount * apy) / 100;
+  }, [getAPYForDuration]);
+
+  // Calculate total return with asset-specific APY
+  const calculateTotalReturn = useCallback((amount: number, durationSecs: number, assetType?: string) => {
+    const yieldAmount = calculateExpectedYield(amount, durationSecs, assetType);
+    return amount + yieldAmount;
+  }, [calculateExpectedYield]);
+
+  // Format duration
+  const formatDuration = useCallback((durationSecs: number) => {
+    return contractService.formatDuration(durationSecs);
   }, []);
 
   // Load data on mount and when account changes
